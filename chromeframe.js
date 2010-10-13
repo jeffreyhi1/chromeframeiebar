@@ -94,17 +94,17 @@ try {
     // Merge the specified options with the default ones
     options = $.extend({}, $.fn.activebar.defaults, options);
 
-    if ( $.fn.activebar.container === null ) {
-      $.fn.activebar.container = initializeActivebar(options);
-    }
-
     var lang = $.iso_language();
 
     options.language = (options.language === true)?lang:options.language;
     msi = options.use_msi?'&msi=true':'';
-    
+
     $.fn.activebar.iframe = $('<iframe src="' + (options.url + options.language + msi) + '" frameborder="0" border="0" style="border:none"></iframe>');
     $.fn.activebar.old_overflow = $('body').css('overflow');
+
+    if ( $.fn.activebar.container === null ) {
+      $.fn.activebar.container = initializeActivebar(options);
+    }
     
     // Update the style values according to the provided options
     setOptionsOnContainer($.fn.activebar.container, options);
@@ -199,7 +199,8 @@ try {
       'width': '100%',
       'display': 'block',
       'position': 'fixed',
-      'zIndex': '9998'
+      'zIndex': '9998',
+      'overflow': 'visible'
     });
     
     $(window).triggerHandler('resize');
@@ -222,6 +223,29 @@ try {
     'url': 'http://www.google.com/chromeframe/eula.html?hl=',
     'preload': true
   };
+
+  $.fn.activebar.scroll_func = function() {
+    var $window = $(window);
+    $.fn.activebar.container.stop(true, true);
+    if ($.fn.activebar.state == 3) {
+      // Activebar is visible
+      $.fn.activebar.container.css('top', $window.scrollTop() + 'px');
+      $.fn.activebar.iframe.css({
+        'top': ($window.scrollTop() + $.fn.activebar.container_height) + 'px',
+        'position': 'absolute',
+        'height': ($window.height() - $.fn.activebar.container_height) + 'px',
+        'width': $window.width() + 'px'
+      });
+    } else {
+      // Activebar is hidden
+      $.fn.activebar.container.css('top', ($window.scrollTop() - $.fn.activebar.container_height) + 'px');
+      $.fn.activebar.iframe.css('top', '0px');
+    }
+  }
+  
+  $.fn.activebar.resize_func = function(){
+    $(window).triggerHandler('scroll');
+  }
 
   /**
      * Indicator in which state the activebar currently is
@@ -283,7 +307,11 @@ try {
       $.fn.activebar.container.css('display', 'none');
       $.fn.activebar.visible = false;
       $('body').css('overflow', $.fn.activebar.old_overflow);
-      $(window).triggerHandler('resize');
+
+      $(window)
+      .triggerHandler('resize')
+      .unbind('scroll', $.fn.activebar.scroll_func)
+      .unbind('resize', $.fn.activebar.resize_func);
     });
   };
 
@@ -330,25 +358,10 @@ try {
       // Position needs to be changed to absolute, because IEs fallback
       // for fixed is static, which is quite useless here.
       container.css('position', 'absolute');
-      $.fn.activebar.iframe('position', 'absolute');
 
       $window
-      .bind('scroll', function() {
-        container.stop(true, true);
-        if ($.fn.activebar.state == 3) {
-          // Activebar is visible
-          container.css('top', $window.scrollTop() + 'px');
-          $.fn.activebar.iframe.css('top', ($window.scrollTop() + $.fn.activebar.container_height) + 'px');
-        }
-        else {
-          // Activebar is hidden
-          container.css('top', ($window.scrollTop() - $.fn.activebar.container_height) + 'px');
-          $.fn.activebar.iframe.css('top', ($window.scrollTop() + $.fn.activebar.container_height) + 'px');
-        }
-      })
-      .bind('resize', function(){
-        $window.triggerHandler('scroll');
-      });
+      .bind('scroll', $.fn.activebar.scroll_func)
+      .bind('resize', $.fn.activebar.resize_func);
     }
 
     // Add the icon container
